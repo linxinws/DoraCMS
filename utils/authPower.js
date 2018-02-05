@@ -3,7 +3,6 @@ const {
 } = require('../server/lib/controller');
 const _ = require('lodash');
 module.exports = (req, res, next) => {
-    // console.log('---req.originalUrl---', req.originalUrl);
     req.query.resourcefiles = "_id api";
     AdminResource.getAllResource(req, res, {
         type: '1'
@@ -13,7 +12,7 @@ module.exports = (req, res, next) => {
             let resourceObj = resouce[i];
             let targetApi = (req.originalUrl).replace('/manage/', '').split("?")[0];
             if (!_.isEmpty(req.session.adminUserInfo)) {
-                let adminPower = req.session.adminUserInfo.group.power;
+                let adminPower = req.session.adminPower;
                 if (resourceObj.api === targetApi && adminPower && adminPower.indexOf(resourceObj._id) > -1) {
                     hasPower = true;
                     break;

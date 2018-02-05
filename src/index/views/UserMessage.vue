@@ -1,83 +1,56 @@
 <template>
-  <div class="user-center">
-    <div>
-      <UserBar />
-      <el-row :gutter="0" class="header-main">
-        <el-col :xs="1" :sm="1" :md="1" :lg="1">
-          <div class="grid-content bg-purple">&nbsp;</div>
-        </el-col>
-        <el-col :xs="22" :sm="22" :md="22" :lg="22">
-          <div class="user-message">
-            <!-- {{noticelist.docs}} -->
-            <div v-if="noticelist">
-              <UserNoticeDataTable :dataList="noticelist.docs"></UserNoticeDataTable>
-              <div class="content-pagination">
-                <Pagination :pageInfo="noticelist.pageInfo" typeId="userNotice" />
-              </div>
-            </div>
-            <div v-else>
-              暂无消息...
-            </div>
+  <div class="contentContainer">
+      <UserCenterTemp className="user-message">
+        <div v-if="noticelist && noticelist.docs.length>0">
+          <UserNoticeDataTable :dataList="noticelist.docs"></UserNoticeDataTable>
+          <div class="content-pagination">
+            <Pagination :pageInfo="noticelist.pageInfo" typeId="userNotice" />
           </div>
-        </el-col>
-        <el-col :xs="1" :sm="1" :md="1" :lg="1">
-          <div class="grid-content bg-purple">
-            &nbsp;
+        </div>
+        <div class="no-contents" v-else>
+          <div class="um-profile-note">
+            <i class="fa fa-frown-o"></i>
+            <span>暂无消息</span>
           </div>
-        </el-col>
-      </el-row>
+        </div>
+      </UserCenterTemp>
     </div>
-  </div>
 </template>
 <script>
-import api from '~api'
-import UserBar from '../components/UserBar'
-import UserNoticeDataTable from '../components/UserNoticeDataTable';
-import Pagination from '../components/Pagination.vue'
+import api from "~api";
+import UserCenterTemp from "./UserCenterTemp";
+import UserNoticeDataTable from "../components/UserNoticeDataTable";
+import Pagination from "../components/Pagination.vue";
 
-const validatorUtil = require('../../../utils/validatorUtil.js')
-import {
-  mapGetters,
-  mapActions
-} from 'vuex';
+const validatorUtil = require("../../../utils/validatorUtil.js");
+import { mapGetters, mapActions } from "vuex";
 export default {
-  name: 'userMessage',
+  name: "userMessage",
   metaInfo() {
     return {
-      title: '用户中心'
-    }
+      title: "用户中心-消息"
+    };
   },
   components: {
-    UserBar,
+    UserCenterTemp,
     UserNoticeDataTable,
     Pagination
   },
   data() {
-    return {
-
-    }
+    return {};
   },
-  methods: {
-
-  },
+  methods: {},
   mounted() {
-    this.$store.dispatch('frontend/user/userNotices');
+    this.$store.dispatch("frontend/user/userNotices");
   },
   computed: {
     ...mapGetters({
-      noticelist: 'frontend/user/noticelist'
+      noticelist: "frontend/user/noticelist"
     })
   }
-}
+};
 </script>
 
 <style lang="scss">
-.user-center {
-  background-color: #f4f5f5;
-  .user-message {
-    margin: 15px 0;
-    padding: 15px;
-    background-color: #ffffff;
-  }
-}
+
 </style>

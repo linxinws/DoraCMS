@@ -18,11 +18,7 @@ function checkFormData(req, res, fields) {
         errMsg = '5-30个非特殊字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -35,12 +31,14 @@ class Ads {
             let current = req.query.current || 1;
             let pageSize = req.query.pageSize || 10;
             let model = req.query.model; // 查询模式 full/simple
+            let state = req.query.state;
             let queryObj = {};
             if (model === 'full') {
                 pageSize = '1000'
             }
+            if (state) queryObj.state = state
 
-            const Ads = await AdsModel.find(queryObj).sort({ date: -1 }).skip(10 * (Number(current) - 1)).limit(Number(pageSize)).populate([{
+            const Ads = await AdsModel.find(queryObj).sort({ date: -1 }).skip(Number(pageSize) * (Number(current) - 1)).limit(Number(pageSize)).populate([{
                 path: 'items'
             }]).exec();
             const totalItems = await AdsModel.count();
@@ -102,6 +100,8 @@ class Ads {
             const adObj = {
                 name: fields.name,
                 state: fields.state,
+                height: fields.height,
+                carousel: fields.carousel,
                 type: fields.type,
                 comments: fields.comments
             }
@@ -150,6 +150,8 @@ class Ads {
             const userObj = {
                 name: fields.name,
                 state: fields.state,
+                height: fields.height,
+                carousel: fields.carousel,
                 type: fields.type,
                 comments: fields.comments
             }
@@ -196,10 +198,7 @@ class Ads {
                 targetIds = targetIds.split(',');
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             for (let i = 0; i < targetIds.length; i++) {
                 let currentId = targetIds[i];

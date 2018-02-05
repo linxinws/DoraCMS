@@ -14,26 +14,23 @@
             <el-table-column prop="email" label="邮箱" show-overflow-tooltip>
             </el-table-column>
             <el-table-column prop="enable" label="是否有效" show-overflow-tooltip>
-                <template scope="scope">
+                <template slot-scope="scope">
                     <i :class="scope.row.enable ? 'fa fa-check-circle' : 'fa fa-minus-circle'" :style="scope.row.enable ? green : red"></i>
                 </template>
             </el-table-column>
             <el-table-column label="操作" width="150">
-                <template scope="scope">
-                    <el-button size="mini" @click="editUserInfo(scope.$index, dataList)">编辑</el-button>
-                    <el-button size="mini" type="danger" @click="deleteUser(scope.$index, dataList)">删除</el-button>
+                <template slot-scope="scope">
+                    <el-button size="mini" type="primary" plain round @click="editUserInfo(scope.$index, dataList)"> <i class="fa fa-edit"></i></el-button>
+                    <el-button size="mini" type="danger" plain round icon="el-icon-delete" @click="deleteUser(scope.$index, dataList)"></el-button>
                 </template>
             </el-table-column>
         </el-table>
-        <div style="margin-top: 20px;display:none;">
-            <el-button @click="toggleSelection([tableData3[1], tableData3[2]])">切换第二、第三行的选中状态</el-button>
-            <el-button @click="toggleSelection()">取消选择</el-button>
-        </div>
     </div>
 </template>
 
 <script>
 import services from '../../store/services.js';
+import _ from 'lodash';
 export default {
     props: {
         dataList: Array
@@ -64,10 +61,11 @@ export default {
         editUserInfo(index, rows) {
             console.log('--rows---', rows);
             let rowData = rows[index];
-            rowData.group = rows[index].group._id;
+            let newRowData = _.assign({}, rowData);
+            newRowData.group = rows[index].group._id;
             this.$store.dispatch('showAdminUserForm', {
                 edit: true,
-                formData: rowData
+                formData: newRowData
             });
         },
         deleteUser(index, rows) {

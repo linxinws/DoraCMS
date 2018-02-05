@@ -1,83 +1,57 @@
 <template>
-  <div class="user-center">
-    <div>
-      <UserBar />
-      <el-row :gutter="0" class="header-main">
-        <el-col :xs="1" :sm="1" :md="1" :lg="1">
-          <div class="grid-content bg-purple">&nbsp;</div>
-        </el-col>
-        <el-col :xs="22" :sm="22" :md="22" :lg="22">
-          <div class="user-message">
-            <div v-if="replylist">
-              <UserReplieDataTable :dataList="replylist.docs" :userInfo="loginState.userInfo"></UserReplieDataTable>
-              <div class="content-pagination">
-                <Pagination :pageInfo="replylist.pageInfo" typeId="userReplies" />
-              </div>
-            </div>
-            <div v-else>
-              暂无参与话题...
-            </div>
+  <div class="contentContainer">
+      <UserCenterTemp className="user-message">
+        <div v-if="replylist && replylist.docs.length>0">
+          <UserReplieDataTable :dataList="replylist.docs" :userInfo="loginState.userInfo"></UserReplieDataTable>
+          <div class="content-pagination">
+            <Pagination :pageInfo="replylist.pageInfo" typeId="userReplies" />
           </div>
-        </el-col>
-        <el-col :xs="1" :sm="1" :md="1" :lg="1">
-          <div class="grid-content bg-purple">
-            &nbsp;
+        </div>
+        <div class="no-contents" v-else>
+          <div class="um-profile-note">
+            <i class="fa fa-frown-o"></i>
+            <span>暂无参与话题</span>
           </div>
-        </el-col>
-      </el-row>
+        </div>
+      </UserCenterTemp>
     </div>
-  </div>
 </template>
 <script>
-import api from '~api'
-import UserBar from '../components/UserBar'
-import UserReplieDataTable from '../components/UserReplieDataTable';
-import Pagination from '../components/Pagination.vue'
+import api from "~api";
+import UserCenterTemp from "./UserCenterTemp";
+import UserReplieDataTable from "../components/UserReplieDataTable";
+import Pagination from "../components/Pagination.vue";
 
-const validatorUtil = require('../../../utils/validatorUtil.js')
-import {
-  mapGetters,
-  mapActions
-} from 'vuex';
+const validatorUtil = require("../../../utils/validatorUtil.js");
+import { mapGetters, mapActions } from "vuex";
 export default {
-  name: 'userMessage',
+  name: "userMessage",
   metaInfo() {
     return {
-      title: '用户中心'
-    }
+      title: "用户中心-参与话题"
+    };
   },
   components: {
-    UserBar,
+    UserCenterTemp,
     UserReplieDataTable,
     Pagination
   },
   data() {
-    return {
-
-    }
+    return {};
   },
-  methods: {
-
-  },
+  methods: {},
   mounted() {
-    this.$store.dispatch('frontend/user/userReplies');
+    this.$store.dispatch("frontend/user/userReplies");
   },
   computed: {
     ...mapGetters({
-      replylist: 'frontend/user/replylist',
-      loginState: 'frontend/user/getSessionState'
+      replylist: "frontend/user/replylist",
+      loginState: "frontend/user/getSessionState"
     })
   }
-}
+};
 </script>
 
 <style lang="scss">
-.user-center {
-  background-color: #f4f5f5;
-  .user-message {
-    margin: 15px 0;
-    padding: 15px;
-    background-color: #ffffff;
-  }
-}
+
 </style>

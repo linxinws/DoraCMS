@@ -17,10 +17,12 @@
                 ]
             ],
             "plugins": [
+                "lodash",
                 "transform-runtime",
                 "transform-object-rest-spread",
                 "transform-vue-jsx",
-                "transform-remove-strict-mode"
+                "transform-remove-strict-mode",
+                "syntax-dynamic-import"
             ]
         },
         "development": {
@@ -37,9 +39,11 @@
                 ]
             ],
             "plugins": [
+                "lodash",
                 "transform-object-rest-spread",
                 "transform-vue-jsx",
-                "transform-remove-strict-mode"
+                "transform-remove-strict-mode",
+                "syntax-dynamic-import"
             ]
         }
     }

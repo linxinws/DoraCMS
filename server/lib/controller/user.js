@@ -10,6 +10,8 @@ const { service, settings, validatorUtil, logUtil, siteFunc } = require('../../.
 const shortid = require('shortid');
 const validator = require('validator');
 const _ = require('lodash')
+const fs = require('fs')
+const captcha = require('trek-captcha')
 
 function checkFormData(req, res, fields) {
     let errMsg = '';
@@ -19,7 +21,7 @@ function checkFormData(req, res, fields) {
     if (!validatorUtil.checkUserName(fields.userName)) {
         errMsg = '5-12个英文字符!';
     }
-    if (!validatorUtil.checkName(fields.name)) {
+    if (fields.name && !validatorUtil.checkName(fields.name)) {
         errMsg = '2-6个中文字符!';
     }
     if (fields.phoneNum && !validatorUtil.checkPhoneNum(fields.phoneNum)) {
@@ -32,11 +34,7 @@ function checkFormData(req, res, fields) {
         errMsg = '请输入5-30个字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -44,6 +42,15 @@ class User {
     constructor() {
         // super()
     }
+
+    async getImgCode(req, res) {
+        const { token, buffer } = await captcha();
+        req.session.imageCode = token;
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.write(buffer);
+        res.end();
+    }
+
     async getUsers(req, res, next) {
         try {
             let current = req.query.current || 1;
@@ -55,15 +62,16 @@ class User {
                 queryObj.userName = { $regex: reKey }
             }
 
-            const Users = await UserModel.find(queryObj, { password: 0 }).sort({ date: -1 }).skip(10 * (Number(current) - 1)).limit(Number(pageSize));
-            const totalItems = await UserModel.count();
+            const Users = await UserModel.find(queryObj, { password: 0 }).sort({ date: -1 }).skip(Number(pageSize) * (Number(current) - 1)).limit(Number(pageSize));
+            const totalItems = await UserModel.count(queryObj);
             res.send({
                 state: 'success',
                 docs: Users,
                 pageInfo: {
                     totalItems,
                     current: Number(current) || 1,
-                    pageSize: Number(pageSize) || 10
+                    pageSize: Number(pageSize) || 10,
+                    searchkey: searchkey || ''
                 }
             })
         } catch (err) {
@@ -99,10 +107,13 @@ class User {
                 userName: fields.userName,
                 name: fields.name || '',
                 email: fields.email,
+                logo: fields.logo,
                 phoneNum: fields.phoneNum || '',
-                password: service.encrypt(fields.password, settings.encrypt_key),
                 confirm: fields.confirm,
                 group: fields.group
+            }
+            if (fields.password) {
+                userObj.password = service.encrypt(fields.password, settings.encrypt_key);
             }
             const item_id = fields._id;
 
@@ -135,10 +146,7 @@ class User {
                 targetIds = targetIds.split(',');
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             for (let i = 0; i < targetIds.length; i++) {
                 let regUserMsg = await MessageModel.find({ 'author': targetIds[i] });
@@ -176,12 +184,7 @@ class User {
                     errMsg = '请输入正确的密码'
                 }
                 if (errMsg) {
-                    res.send({
-                        state: 'error',
-                        type: 'ERROR_PARAMS',
-                        message: errMsg
-                    })
-                    return;
+                    throw new siteFunc.UserException(errMsg);
                 }
             } catch (err) {
                 console.log(err.message, err);
@@ -251,12 +254,7 @@ class User {
                     errMsg = '两次输入密码不一致，请重新输入'
                 }
                 if (errMsg) {
-                    res.send({
-                        state: 'error',
-                        type: 'ERROR_PARAMS',
-                        message: errMsg
-                    })
-                    return;
+                    throw new siteFunc.UserException(errMsg);
                 }
             } catch (err) {
                 console.log(err.message, err);

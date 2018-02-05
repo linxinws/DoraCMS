@@ -13,6 +13,7 @@ const state = () => ({
         isLoad: false
     },
     hotContentList: [],
+    recContentList: [],
     recentContentList: []
 })
 
@@ -41,20 +42,13 @@ const actions = {
         commit,
         state
     }, config) {
-        // if (config.path === state.item.path) {
-        //     return
-        // }
-
-        // console.log('---config---', config);
         const {
             data: {
                 doc, messages, randomArticles
             }
         } = await api.get('content/getContent', {
-                ...config,
-                markdown: 1
+                ...config
             })
-        // console.log('----data-111---', messages);
         if (doc) {
             commit('receiveArticleItem', {
                 doc,
@@ -76,9 +70,25 @@ const actions = {
                 model: 'simple',
                 cache: true
             })
-        // console.log('----getSimpleListByParams---', data);
         if (data.docs && data.state === 'success') {
             commit('receiveHotList', data)
+        }
+    },
+    async ['getRecContentList']({
+        commit,
+        state
+    }, config) {
+        if (state.recContentList.length && config.path === state.lists.path) return
+        const {
+            data
+        } = await api.get('content/getSimpleListByParams', {
+                ...config,
+                isTop: 1,
+                model: 'simple',
+                cache: true
+            })
+        if (data.docs && data.state === 'success') {
+            commit('receiveRecList', data)
         }
     },
     async ['getRecentContentList']({
@@ -92,7 +102,6 @@ const actions = {
                 model: 'simple',
                 cache: true
             })
-        // console.log('----getRecentContentList---', data);
         if (data.docs && data.state === 'success') {
             commit('receiveRecentList', data)
         }
@@ -130,20 +139,31 @@ const mutations = {
     ['receiveHotList'](state, data) {
         state.hotContentList = data.docs
     },
+    ['receiveRecList'](state, data) {
+        state.recContentList = data.docs
+    },
     ['receiveRecentList'](state, data) {
         state.recentContentList = data.docs
     }
 }
 
 const getters = {
-    ['getArticleList'](state) {
-        return state.lists
+    getArticleList: (state, getters) => (path) => {
+        if (path === state.lists.path) {
+            return state.lists
+        } else return {
+            data: {},
+            loading: true
+        }
     },
     ['getArticleItem'](state) {
         return state.item
     },
     ['getHotContentList'](state) {
         return state.hotContentList
+    },
+    ['getRecContentList'](state) {
+        return state.recContentList
     },
     ['getRecentContentList'](state) {
         return state.recentContentList

@@ -17,11 +17,7 @@ function checkFormData(req, res, fields) {
         errMsg = '2-30个非特殊字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -44,15 +40,16 @@ class ContentTag {
                 queryObj.name = { $regex: reKey }
             }
 
-            const contentTags = await ContentTagModel.find(queryObj).sort({ date: -1 }).skip(10 * (Number(current) - 1)).limit(Number(pageSize));
-            const totalItems = await ContentTagModel.count();
+            const contentTags = await ContentTagModel.find(queryObj).sort({ date: -1 }).skip(Number(pageSize) * (Number(current) - 1)).limit(Number(pageSize));
+            const totalItems = await ContentTagModel.count(queryObj);
             res.send({
                 state: 'success',
                 docs: contentTags,
                 pageInfo: {
                     totalItems,
                     current: Number(current) || 1,
-                    pageSize: Number(pageSize) || 10
+                    pageSize: Number(pageSize) || 10,
+                    searchkey: searchkey || ''
                 }
             })
         } catch (err) {
@@ -105,7 +102,6 @@ class ContentTag {
     }
 
     async updateContentTag(req, res, next) {
-        console.log('--req.params--', req.params);
         const form = new formidable.IncomingForm();
         form.parse(req, async (err, fields, files) => {
             try {
@@ -150,10 +146,7 @@ class ContentTag {
                 errMsg = '非法请求，请稍后重试！';
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             await ContentTagModel.remove({ _id: req.query.ids });
             res.send({
@@ -164,7 +157,7 @@ class ContentTag {
             res.send({
                 state: 'error',
                 type: 'ERROR_IN_SAVE_DATA',
-                message: '删除数据失败:',
+                message: '删除数据失败:' + err,
             })
         }
     }

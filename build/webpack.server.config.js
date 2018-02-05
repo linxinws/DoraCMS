@@ -32,8 +32,12 @@ var config = merge(base, {
     },
     resolve: {
         alias: {
+            '@': path.join(__dirname, '..', 'src'),
+            'front_public': '@/index/assets/css/public.scss',
             '~api': path.resolve(__dirname, '../src/api/index-server'),
-            'api-config': path.resolve(__dirname, '../src/api/config-server')
+            '~server': path.resolve(__dirname, '../server'),
+            'api-config': path.resolve(__dirname, '../src/api/config-server'),
+            'create-route': './create-route-server.js'
         }
     },
     node: {

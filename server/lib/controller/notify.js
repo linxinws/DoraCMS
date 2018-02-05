@@ -20,11 +20,7 @@ function checkFormData(req, res, fields) {
         errMsg = '5-500个非特殊字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -40,7 +36,7 @@ class Notify {
             if (type) {
                 queryObj.type = type;
             }
-            const notifies = await NotifyModel.find(queryObj).sort({ date: -1 }).skip(10 * (Number(current) - 1)).limit(Number(pageSize)).populate([{
+            const notifies = await NotifyModel.find(queryObj).sort({ date: -1 }).skip(Number(pageSize) * (Number(current) - 1)).limit(Number(pageSize)).populate([{
                 path: 'adminSender',
                 select: 'userName -_id'
             }]).exec();
@@ -76,10 +72,7 @@ class Notify {
                 errMsg = '非法请求，请稍后重试！';
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             await NotifyModel.remove({ _id: req.query.ids });
             res.send({
@@ -90,7 +83,7 @@ class Notify {
             res.send({
                 state: 'error',
                 type: 'ERROR_IN_SAVE_DATA',
-                message: '删除数据失败:',
+                message: '删除数据失败:' + err,
             })
         }
     }

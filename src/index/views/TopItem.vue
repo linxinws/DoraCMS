@@ -1,103 +1,61 @@
 <template>
     <article class="content-item">
-        <el-row :gutter="0">
-            <el-col :xs="0" :sm="0" :md="7" :lg="7">
-                <div class="grid-content bg-purple contentImg" v-once>
-                    <div v-if="item.categories && item.categories.length>1">
-                        <span class="content-cate">{{(item.categories)[item.categories.length-1].name}}</span>
+        <el-row :gutter="30" class="row-list">
+          <el-col :xs="24" :sm="8" :md="8" :lg="8" class='image'>
+              <div class="grid-content bg-purple contentImg">
+                <div v-if="item.categories">
+                    <div v-if="item.categories.length>1">
+                        <router-link class="item-category" :to="{path: '/'+(item.categories)[item.categories.length-1].defaultUrl+ '___'+(item.categories)[item.categories.length-1]._id}">{{(item.categories)[item.categories.length-1].name}}</router-link>
                     </div>
-                    <router-link :to="'/details/'+item._id+'.html'" class="continue-reading">
-                        <img :src="item.sImg" :alt="item.title" />
-                    </router-link>
+                    <div v-else-if="item.categories.length == 1">
+                        <router-link class="item-category" :to="{path: '/'+(item.categories)[0].defaultUrl+ '___'+(item.categories)[0]._id}">{{(item.categories)[0].name}}</router-link>
+                    </div>
                 </div>
-            </el-col>
-            <el-col :xs="24" :sm="24" :md="17" :lg="17" class='discription'>
-                <div class="grid-content bg-purple-light title">
-                    <h2 v-once>
-                        <router-link :to="'/details/'+item._id+'.html'" class="continue-reading">{{item.title}}</router-link>
-                    </h2>
-                    <ul class="post-meta">
-                        <li>
-                            <i class="fa fa-clock-o" aria-hidden="true"></i>&nbsp;&nbsp;{{item.date}}</li>
-                        <li>
-                            <i class="fa fa-eye" aria-hidden="true"></i>&nbsp;&nbsp;{{item.clickNum}}</li>
-                        <li>
-                            <i class="fa fa-comment" aria-hidden="true"></i>&nbsp;&nbsp;{{item.commentNum}}</li>
-                    </ul>
-                </div>
-                <div class="dis">{{item.discription}}</div>
-            </el-col>
+                  <router-link :to="'/details/'+item._id+'.html'" class="continue-reading">
+                      <img :src="item.sImg" :alt="item.title" />
+                  </router-link>
+              </div>
+          </el-col>
+          <el-col :xs="24" :sm="16" :md="16" :lg="16">
+              <div class="discription">
+                  <h2>
+                      <router-link :to="'/details/'+item._id+'.html'" class="continue-reading">{{item.title}}</router-link>
+                  </h2>
+                  <div class="dis">{{item.discription | cutWords(90)}}</div>
+                  <ul class="post-meta">
+                      <li class="author">
+                        <a class="logo">
+                            <img :src="renderAuthor.logo" :alt="renderAuthor.userName">
+                        </a>
+                        <span>{{renderAuthor.userName}}</span>
+                      </li>
+                      <li>
+                          <i class="fa fa-clock-o" aria-hidden="true"></i>&nbsp;&nbsp;{{item.date}}</li>
+                      <li>
+                          <i class="fa fa-eye" aria-hidden="true"></i>&nbsp;&nbsp;{{item.clickNum}}</li>
+                      <li>
+                          <i class="fa fa-comment" aria-hidden="true"></i>&nbsp;&nbsp;{{item.commentNum}}</li>
+                  </ul>
+              </div>
+          </el-col>  
         </el-row>
     </article>
 </template>
 <style lang="scss">
-.content-item {
-    padding-bottom: 35px;
-    margin-bottom: 40px;
-    overflow: hidden;
-    border-bottom: 1px dashed #f1f1f1;
-    .contentImg {
-        img {
-            width: 100%;
-        }
-        margin-right: 30px;
-        height: auto;
-        display: block;
-        position: relative;
-        .content-cate {
-            position: absolute;
-            top: .4rem;
-            left: .4rem;
-            display: block;
-            padding: 0 .5rem;
-            color: #fff;
-            background: rgba(0, 0, 0, .5);
-            font-size: .6rem;
-            text-align: center;
-            border-radius: 1rem;
-            z-index: 11;
-        }
-    }
-    .discription {
-        text-align: left;
-        .post-meta {
-            li {
-                display: inline-block;
-                font-size: 13px;
-                color: #bbbbbb;
-                margin: 10px 10px 10px 0;
-            }
-        }
-        .title {
-            h2 {
-                margin: 0;
-                color: #6e7173;
-            }
-            time {
-                color: #a2a2a2;
-                margin-top: 14px;
-                font-style: normal;
-                font-size: 15px;
-                display: inline-block;
-                margin-left: 3px;
-                margin-bottom: 15px;
-            }
-        }
-        .dis {
-            font-size: 15px;
-            color: #828a92;
-        }
-    }
-}
+
 </style>
 
 <script>
 export default {
-    name: 'index-item',
-    serverCacheKey: props => {
-        return `article-item-${props.item._id}`
-    },
-    props: ['item']
-}
-
+  name: "index-item",
+  serverCacheKey: props => {
+    return `article-item-${props.item._id}`;
+  },
+  computed: {
+    renderAuthor() {
+      return this.item.author ? this.item.author : this.item.uAuthor;
+    }
+  },
+  props: ["item"]
+};
 </script>

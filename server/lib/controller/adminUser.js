@@ -1,7 +1,9 @@
 const BaseComponent = require('../prototype/baseComponent');
 const AdminUserModel = require("../models").AdminUser;
+const AdminResourceModel = require("../models").AdminResource;
 const UserModel = require("../models").User;
 const ContentModel = require("../models").Content;
+const SystemConfigModel = require("../models").SystemConfig;
 const SystemOptionLogModel = require("../models").SystemOptionLog;
 const UserNotifyModel = require("../models").UserNotify;
 const MessageModel = require("../models").Message;
@@ -10,7 +12,8 @@ const shortid = require('shortid');
 const validator = require('validator')
 const _ = require('lodash')
 const { service, settings, validatorUtil, logUtil, siteFunc } = require('../../../utils');
-
+const axios = require('axios');
+const pkgInfo = require('../../../package.json')
 function checkFormData(req, res, fields) {
     let errMsg = '';
     if (fields._id && !siteFunc.checkCurrentId(fields._id)) {
@@ -22,9 +25,9 @@ function checkFormData(req, res, fields) {
     if (!validatorUtil.checkName(fields.name)) {
         errMsg = '2-6个中文字符!';
     }
-    if (!validatorUtil.checkPwd(fields.password)) {
-        errMsg = '6-12位，只能包含字母、数字和下划线!';
-    }
+    // if (!validatorUtil.checkPwd(fields.password)) {
+    //     errMsg = '6-12位，只能包含字母、数字和下划线!';
+    // }
     if (fields.password !== fields.confirmPassword) {
         errMsg = '两次输入密码不一致!';
     }
@@ -34,15 +37,11 @@ function checkFormData(req, res, fields) {
     if (!validatorUtil.checkEmail(fields.email)) {
         errMsg = '请填写正确的邮箱!';
     }
-    if (!validator.isLength(fields.comments, 5, 30)) {
+    if (fields.comments && !validator.isLength(fields.comments, 5, 30)) {
         errMsg = '请输入5-30个字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -74,14 +73,56 @@ class AdminUser {
         try {
             let adminUserCount = await AdminUserModel.count();
             let regUserCount = await UserModel.count();
+            let regUsers = await UserModel.find({}, { password: 0, email: 0 }).limit(20).sort({ date: -1 });
             let contentCount = await ContentModel.count();
             let messageCount = await MessageModel.count();
+            let logQuery = { type: 'login' };
+            let reKey = new RegExp(req.session.adminUserInfo.userName, 'i')
+            logQuery.logs = { $regex: reKey }
+            let loginLogs = await SystemOptionLogModel.find(logQuery).sort({ date: -1 }).skip(1).limit(1);
+            let messages = await MessageModel.find().limit(10).sort({ date: -1 }).populate([{
+                path: 'contentId',
+                select: 'stitle _id'
+            }, {
+                path: 'author',
+                select: 'userName _id enable date logo'
+            }, {
+                path: 'replyAuthor',
+                select: 'userName _id enable date logo'
+            }, {
+                path: 'adminAuthor',
+                select: 'userName _id enable date logo'
+            }, {
+                path: 'adminReplyAuthor',
+                select: 'userName _id enable date logo'
+            }]).exec();
+            // 权限标记
+            let fullResources = await AdminResourceModel.find();
+            let newResources = [];
+            for (let i = 0; i < fullResources.length; i++) {
+                let resourceObj = JSON.parse(JSON.stringify(fullResources[i]));
+                if (resourceObj.type == '1' && !_.isEmpty(req.session.adminUserInfo)) {
+                    let adminPower = req.session.adminUserInfo.group.power;
+                    if (adminPower && adminPower.indexOf(resourceObj._id) > -1) {
+                        resourceObj.hasPower = true;
+                    } else {
+                        resourceObj.hasPower = false;
+                    }
+                    newResources.push(resourceObj);
+                } else {
+                    newResources.push(resourceObj);
+                }
+            }
             res.send({
                 state: 'success',
                 adminUserCount,
                 regUserCount,
+                regUsers,
                 contentCount,
-                messageCount
+                messageCount,
+                messages,
+                loginLogs,
+                resources: newResources
             });
         } catch (error) {
             logUtil.error(err, req);
@@ -99,7 +140,7 @@ class AdminUser {
             let pageSize = req.query.pageSize || 10;
             const adminUsers = await AdminUserModel.find({}, { password: 0 }).sort({
                 date: -1
-            }).skip(10 * (Number(current) - 1)).limit(Number(pageSize)).populate({
+            }).skip(Number(pageSize) * (Number(current) - 1)).limit(Number(pageSize)).populate({
                 path: 'group',
                 select: "name _id"
             }).exec();
@@ -126,24 +167,23 @@ class AdminUser {
     async loginAction(req, res, next) {
         const form = new formidable.IncomingForm();
         form.parse(req, async (err, fields, files) => {
+
             let {
                 userName,
                 password
             } = fields;
             try {
-                let newPsd = service.encrypt(fields.password, settings.encrypt_key);
                 let errMsg = '';
                 if (!validatorUtil.checkUserName(fields.userName)) {
                     errMsg = '请输入正确的用户名'
-                } else if (!validatorUtil.checkPwd(fields.password)) {
-                    errMsg = '请输入正确的密码'
                 }
+
+                if (!fields.imageCode || fields.imageCode != req.session.imageCode) {
+                    errMsg = '请输入正确的验证码'
+                }
+
                 if (errMsg) {
-                    res.send({
-                        state: 'error',
-                        type: 'ERROR_PARAMS',
-                        message: errMsg
-                    })
+                    throw new siteFunc.UserException(errMsg);
                 }
             } catch (err) {
                 console.log(err.message, err);
@@ -156,12 +196,12 @@ class AdminUser {
             }
             const userObj = {
                 userName: fields.userName,
-                password: service.encrypt(fields.password, settings.encrypt_key)
+                password: fields.password
             }
             try {
                 let user = await AdminUserModel.findOne(userObj).populate([{
                     path: 'group',
-                    select: 'power _id enable'
+                    select: 'power _id enable name'
                 }]).exec();
                 if (user) {
                     if (!user.enable) {
@@ -183,6 +223,31 @@ class AdminUser {
                     loginLog.type = 'login';
                     loginLog.logs = req.session.adminUserInfo.userName + ' 登录，IP:' + clientIp;
                     await loginLog.save();
+
+                    // 站点认证
+                    if (validatorUtil.checkUrl(req.headers.host) && !req.session.adminUserInfo.auth) {
+                        const systemConfigs = await SystemConfigModel.find({});
+                        const { siteName, siteEmail, siteDomain } = systemConfigs[0];
+                        let authParams = {
+                            domain: req.headers.host,
+                            ipAddress: clientIp,
+                            version: pkgInfo.version,
+                            siteName,
+                            siteEmail,
+                            siteDomain
+                        };
+                        try {
+                            let writeState = await axios.post(settings.DORACMSAPI + '/system/checkSystemInfo', authParams);
+                            if (writeState.status == 200 && writeState.data == 'success') {
+                                await AdminUserModel.update({ '_id': req.session.adminUserInfo._id }, { $set: { auth: true } })
+                            }
+                        } catch (authError) {
+                            res.send({
+                                state: 'success',
+                                adminPower: req.session.adminPower
+                            });
+                        }
+                    }
 
                     res.send({
                         state: 'success',
@@ -225,20 +290,28 @@ class AdminUser {
                 name: fields.name,
                 email: fields.email,
                 phoneNum: fields.phoneNum,
-                password: service.encrypt(fields.password, settings.encrypt_key),
+                password: fields.password,
                 confirm: fields.confirm,
                 group: fields.group,
                 enable: fields.enable,
                 comments: fields.comments
             }
 
-            const newAdminUser = new AdminUserModel(userObj);
             try {
-                await newAdminUser.save();
-                res.send({
-                    state: 'success',
-                    id: newAdminUser._id
-                });
+                let user = await AdminUserModel.find().or([{ userName: fields.userName }])
+                if (!_.isEmpty(user)) {
+                    res.send({
+                        state: 'error',
+                        message: '用户名已存在！'
+                    });
+                } else {
+                    const newAdminUser = new AdminUserModel(userObj);
+                    await newAdminUser.save();
+                    res.send({
+                        state: 'success',
+                        id: newAdminUser._id
+                    });
+                }
             } catch (err) {
                 logUtil.error(err, req);
                 res.send({
@@ -247,6 +320,7 @@ class AdminUser {
                     message: '保存数据失败:',
                 })
             }
+
         })
     }
 
@@ -270,7 +344,7 @@ class AdminUser {
                 name: fields.name,
                 email: fields.email,
                 phoneNum: fields.phoneNum,
-                password: service.encrypt(fields.password, settings.encrypt_key),
+                password: fields.password,
                 confirm: fields.confirm,
                 group: fields.group,
                 enable: fields.enable,
@@ -305,10 +379,7 @@ class AdminUser {
                 errMsg = '非法请求，请稍后重试！';
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             let adminUserMsg = await MessageModel.find({ 'adminAuthor': req.query.ids });
             if (!_.isEmpty(adminUserMsg)) {
@@ -328,7 +399,7 @@ class AdminUser {
             res.send({
                 state: 'error',
                 type: 'ERROR_IN_SAVE_DATA',
-                message: '删除数据失败:' + err,
+                message: '删除数据失败:' + err.message,
             })
         }
     }

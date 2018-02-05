@@ -1,60 +1,30 @@
 <template>
     <div class="user-bar">
-        <el-row :gutter="0" class="header-main">
-            <el-col :xs="1" :sm="1" :md="1" :lg="1">
-                <div class="grid-content bg-purple">&nbsp;</div>
-            </el-col>
-            <el-col :xs="22" :sm="22" :md="22" :lg="22">
-                <div class="bar-items">
-                    <ul>
-                        <li :class="{active : $route.fullPath == '/users/center'}">
-                            <router-link to="/users/center">个人资料</router-link>
-                        </li>
-                        <li :class="{active : $route.fullPath == '/users/messages'}">
-                            <router-link to="/users/messages">消息管理</router-link>
-                        </li>
-                        <li :class="{active : $route.fullPath == '/users/replies'}">
-                            <router-link to="/users/replies">参与话题</router-link>
-                        </li>
-                    </ul>
-                </div>
-            </el-col>
-            <el-col :xs="1" :sm="1" :md="1" :lg="1">
-                <div class="grid-content bg-purple">
-                    &nbsp;
-                </div>
-            </el-col>
-        </el-row>
+        <div class="bar-items">
+            <ul>
+                <li :class="{active : $route.fullPath == '/users/contents'}">
+                    <router-link to="/users/contents"><i aria-hidden="true" class="fa fa-pencil"></i>&nbsp;文章</router-link>
+                </li>
+                <li :class="{active : $route.fullPath == '/users/messages'}">
+                    <router-link to="/users/messages"><i aria-hidden="true" class="fa fa-comment"></i>&nbsp;消息管理</router-link>
+                </li>
+                <li :class="{active : $route.fullPath == '/users/replies'}">
+                    <router-link to="/users/replies"><i aria-hidden="true" class="fa fa-file-text"></i>&nbsp;参与话题</router-link>
+                </li>
+                <li :class="{active : $route.fullPath == '/users/addContent'}">
+                    <router-link to="/users/addContent"><i class="fa fa-edit" aria-hidden="true"></i>&nbsp;投稿</router-link>
+                </li>
+            </ul>
+        </div>
     </div>
 </template>
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters } from "vuex";
 export default {
-    name: 'UserBar'
-}
-
+  name: "UserBar"
+};
 </script>
 
 <style lang="scss">
-.user-bar {
-    background-color: #ffffff;
-    width: 100%;
-    z-index: 100;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
-    transition: all .2s;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    .bar-items {
-        ul {
-            li {
-                padding: 12px 20px 12px 0;
-                display: inline-block;
-                font-size: 13px;
-            }
-            li.active a {
-                color: #20A0FF
-            }
-        }
-    }
-}
+
 </style>

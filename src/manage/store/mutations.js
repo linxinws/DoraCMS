@@ -149,6 +149,8 @@ const state = {
                 sImg: '',
                 discription: '',
                 author: {},
+                uAuthor: '',
+                markDownComments: '',
                 state: true,
                 isTop: 0,
                 clickNum: 0,
@@ -264,9 +266,11 @@ const state = {
             formData: {
                 name: '',
                 type: '1',
+                height: '',
                 comments: '',
                 items: [],
-                state: true
+                state: true,
+                carousel: true
             }
         },
         itemFormState: {
@@ -430,6 +434,8 @@ const mutations = {
             sImg: '',
             discription: '',
             author: {},
+            uAuthor: '',
+            markDownComments: '',
             state: true,
             isTop: 0,
             clickNum: 0,
@@ -528,9 +534,11 @@ const mutations = {
         state.ads.infoFormState.formData = Object.assign({
             name: '',
             type: '1',
+            height: '',
             comments: '',
             items: [],
-            state: true
+            state: true,
+            carousel: true
         }, formState.formData);
     },
     [types.ADS_ITEM_FORMSTATE](state, formState) {

@@ -16,15 +16,11 @@ function checkFormData(req, res, fields) {
     if (!fields.defaultUrl) {
         errMsg = '请输入用于seo的url!';
     }
-    if (!validator.isLength(fields.comments, 5, 50)) {
-        errMsg = '5-50个非特殊字符!';
+    if (fields.comments && !validator.isLength(fields.comments, 4, 100)) {
+        errMsg = '4-100个非特殊字符!';
     }
     if (errMsg) {
-        res.send({
-            state: 'error',
-            type: 'ERROR_PARAMS',
-            message: errMsg
-        })
+        throw new siteFunc.UserException(errMsg);
     }
 }
 
@@ -38,10 +34,13 @@ class ContentCategory {
             let pageSize = req.query.pageSize || 10;
             let model = req.query.model; // 查询模式 full/simple
             let parentId = req.query.parentId; // 分类ID
-
+            let enable = req.query.enable;
             let queryObj = {};
             if (parentId) {
                 queryObj['parentId'] = parentId;
+            }
+            if (enable) {
+                queryObj['enable'] = enable;
             }
             if (model === 'full') {
                 pageSize = '1000'
@@ -176,10 +175,7 @@ class ContentCategory {
                 errMsg = '非法请求，请稍后重试！';
             }
             if (errMsg) {
-                res.send({
-                    state: 'error',
-                    message: errMsg,
-                })
+                throw new siteFunc.UserException(errMsg);
             }
             await ContentCategoryModel.remove({ _id: req.query.ids });
             res.send({
@@ -190,7 +186,7 @@ class ContentCategory {
             res.send({
                 state: 'error',
                 type: 'ERROR_IN_SAVE_DATA',
-                message: '删除数据失败:',
+                message: '删除数据失败:' + err,
             })
         }
     }

@@ -9,6 +9,7 @@ const favicon = require('serve-favicon')
 const express = require('express')
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
+const RedisStore = require('connect-redis')(session);
 const compression = require('compression')
 const lurCache = require('lru-cache')
 const ueditor = require("ueditor")
@@ -16,7 +17,7 @@ const logger = require('morgan')
 const cookieParser = require('cookie-parser')
 const bodyParser = require('body-parser')
 const { createBundleRenderer } = require('vue-server-renderer')
-const config = require('./src/api/config-server')
+const _ = require('lodash')
 const resolve = file => path.resolve(__dirname, file)
 
 const serverInfo =
@@ -96,21 +97,36 @@ app.use(bodyParser.urlencoded({ extended: true }))
 // cookie 解析中间件
 app.use(cookieParser(settings.session_secret));
 // session配置
-app.use(session({ //session持久化配置
-    secret: settings.encrypt_key,
-    // key: "kvkenskey",
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 1
-    },
-    resave: false,
-    saveUninitialized: true,
-    store: new MongoStore({
-        db: "session",
-        host: "localhost",
-        port: 27017,
-        url: !isProd ? settings.URL : 'mongodb://' + settings.USERNAME + ':' + settings.PASSWORD + '@' + settings.HOST + ':' + settings.PORT + '/' + settings.DB + ''
-    })
-}));
+let sessionConfig = {};
+if (settings.openRedis) {
+    sessionConfig = {
+        secret: settings.session_secret,
+        store: new RedisStore({
+            port: settings.redis_port,
+            host: settings.redis_host,
+            pass: settings.redis_psd,
+            ttl: 1800 // 过期时间
+        }),
+        resave: true,
+        saveUninitialized: true
+    }
+} else {
+    sessionConfig = {
+        secret: settings.encrypt_key,
+        cookie: {
+            maxAge: 1000 * 60 * 10
+        },
+        resave: false,
+        saveUninitialized: true,
+        store: new MongoStore({
+            db: "session",
+            host: "localhost",
+            port: 27017,
+            url: !isProd ? settings.URL : 'mongodb://' + settings.USERNAME + ':' + settings.PASSWORD + '@' + settings.HOST + ':' + settings.PORT + '/' + settings.DB + ''
+        })
+    }
+}
+app.use(session(sessionConfig));
 // 鉴权用户
 app.use(authUser.auth);
 // 初始化日志目录
@@ -130,7 +146,13 @@ app.use('/system', system);
 // 前台路由, ssr 渲染
 app.get(['/', '/page/:current(\\d+)?', '/:cate1?___:typeId?/:current(\\d+)?',
     '/:cate0/:cate1?___:typeId?/:current(\\d+)?', '/search/:searchkey/:current(\\d+)?',
-    '/details/:id', '/users/:userPage', '/dr-admin', '/sitemap.html', '/tag/:tagName/:page(\\d+)?'], (req, res) => {
+    '/details/:id', '/users/:userPage', '/users/editContent/:id', '/dr-admin', '/sitemap.html', '/tag/:tagName/:page(\\d+)?'], (req, res) => {
+
+        // 非正常登录用户禁止访问
+        if (req.originalUrl.indexOf('/users') == 0 && !req.session.logined) {
+            return res.redirect('/');
+        }
+
         if (req.originalUrl === '/dr-admin' && req.session.adminlogined) {
             return res.redirect('/manage');
         }
@@ -172,7 +194,8 @@ app.get(['/', '/page/:current(\\d+)?', '/:cate1?___:typeId?/:current(\\d+)?',
             description: '前端开发俱乐部',
             keywords: 'doracms',
             url: req.url,
-            cookies: req.cookies
+            cookies: req.cookies,
+            env: process.env.NODE_ENV
         }
         renderer.renderToString(context, (err, html) => {
             if (err) {
@@ -196,7 +219,16 @@ app.get('/robots.txt', function (req, res, next) {
 });
 
 // 集成ueditor
-app.use("/ueditor/ue", ueditor(path.join(__dirname, 'public'), function (req, res, next) {
+let qnParams = settings.openqn ? {
+    qn: {
+        accessKey: settings.accessKey,
+        secretKey: settings.secretKey,
+        bucket: settings.bucket,
+        origin: settings.origin
+    },
+    local: true
+} : {};
+app.use("/ueditor/ue", ueditor(path.join(__dirname, 'public'), config = qnParams, function (req, res, next) {
     var imgDir = '/upload/images/ueditor/' //默认上传地址为图片
     var ActionType = req.query.action;
     if (ActionType === 'uploadimage' || ActionType === 'uploadfile' || ActionType === 'uploadvideo') {
@@ -223,19 +255,20 @@ app.use("/ueditor/ue", ueditor(path.join(__dirname, 'public'), function (req, re
     }
 }));
 
+
 // 后台渲染
 app.get('/manage', authSession, function (req, res) {
-    AdminResource.getAllResource(req, res, {
-        type: '0'
-    }).then((manageCates) => {
-        let currentCates = manageCates ? JSON.stringify(manageCates) : [];
+    AdminResource.getAllResource(req, res).then((manageCates) => {
+        let adminPower = req.session.adminPower;
+        console.log('adminPower', adminPower);
+        let currentCates = JSON.stringify(siteFunc.renderNoPowerMenus(manageCates, adminPower));
         if (isProd) {
             res.render('admin.html', {
                 title: 'DoraCMS后台管理',
                 manageCates: currentCates
             })
         } else {
-            backend = backend.replace('__manageCates__', currentCates)
+            backend = backend.replace(/\[[^\]]+\]/g, currentCates)
             res.send(backend)
         }
     })
@@ -244,7 +277,13 @@ app.use('/manage', manage);
 
 // 404 页面
 app.get('*', (req, res) => {
-    res.send('HTTP STATUS: 404')
+    let Page404 = `
+        <div style="text-align:center">
+            <h3 style="width: 25%;font-size: 12rem;color: #409eff;margin: 0 auto;margin-top: 10%;">404</h3>
+            <div style="font-size: 15px;color: #878d99;">太调皮辣，不过我喜欢...哼哼 😏👽 &nbsp;<a href="/">返回首页</a></div>
+        </div>
+    `
+    res.send(Page404)
 })
 
 app.use(function (req, res, next) {
@@ -259,7 +298,7 @@ app.use(function (err, req, res) {
     res.send(err.message)
 })
 
-const port = process.env.PORT || config.port || 8080
+const port = process.env.PORT || settings.serverPort
 app.listen(port, () => {
     console.log(`server started at localhost:${port}`)
 })
